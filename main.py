@@ -10,7 +10,7 @@ import configparser
 
 config = configparser.ConfigParser()
 config.readfp(open(r'config.ini'))
-print()
+
 
 # Bot Configs
 YOUTUBE = config.get('YOUTUBE', 'YOUTUBE_API_KEY')
@@ -58,10 +58,16 @@ def isinDatabase(id):
 
 # Parse time from extracted comments
 def parsetime(timenum):
+    if type(timenum) is tuple:
+        timenum = ''.join(timenum[0])
     timenum = timenum.replace(' ',':')
     timenum = timenum.replace('-',':')
     timenum = timenum.split(":")
     timenum = [int(str(times)) for times in timenum]
+    if(len(timenum)==1):
+        timenum = [0,0] + timenum
+    if(len(timenum)==2):
+        timenum = [0] + timenum
     return timenum
 
 # Get length of a youtube video from youtube api
@@ -75,33 +81,27 @@ def getLength(url):
         length = length.replace('S','')
         length = length.split(":")
         length = [int(str(splitLength)) for splitLength in length]
+        if(len(length)==1):
+            length = [0,0] + length
+        if(len(length)==2):
+            length = [0] + length
     except:
         length = [0,0,0]
     return length
 
 # Check if the requested timestamp value is lesser than youtube video's lenght before replying
 def validate(total,timestamp):
-    if(len(total)>len(timestamp)):
-        return True
-    if(len(total)<len(timestamp)):
-        return False
-    if(len(total) == 3):
-        return ((total[2]*3600 + total[1]*60 + total[0])>(timestamp[2]*3600+ timestamp[1]*60 + timestamp[0]))
-    else:
-        return ((total[1]*60 + total[0])>(timestamp[1]*60 + timestamp[0]))
+    return ((total[2]*3600 + total[1]*60 + total[0])>(timestamp[2]*3600+ timestamp[1]*60 + timestamp[0]))
+
 
 # Return a comment to be replied
 def createComment(id,time):
-    if(len(time)==3):
-        timestamp = str(time[0]) + "h" + str(time[1]) + "m" + str(time[2]) + "s"
-    else:
-        timestamp = str(time[0]) + "m" + str(time[1]) + "s"
-    logging.info('Comment created for id:'+ id + "on time: "+ time)
-    return "https://www.youtube.com/watch?v=" + id + "&t=" + timestamp
+    timestamp = str(time[0]) + "h" + str(time[1]) + "m" + str(time[2]) + "s"
+    logging.info('Comment created for id:'+ id + "on time: "+ str(time))
+    return "https://www.youtube.com/watch?v=" + id + "&t=" + timestamp + "\n \n Reddit Timestamp Bot: [Source Code](https://github.com/ankitgyawali/reddit-timestamp-bot) "
 
 # Main
 for submission in reddit.subreddit("+".join(subreddit)).rising(limit=int(config.get('SUBREDDITS', 'SUBMISSIONS_TO_PROCESS'))):
-    print(submission.title)
     if (isinDatabase(submission.id)):
         continue
     for comment in submission.comments:
@@ -109,11 +109,11 @@ for submission in reddit.subreddit("+".join(subreddit)).rising(limit=int(config.
             continue
         if (isinDatabase(comment.id)):
             continue
-        if (len(pattern.findall(submission.url)) == 1) and (re.match(timepattern,comment.body)):
-            if(validate(getLength(pattern.findall(submission.url)[0]), parsetime(re.match(timepattern,comment.body).group(1)))):
+        if (len(pattern.findall(submission.url)) == 1) and len(timepattern.findall(comment.body)) ==1:
+            if(validate(getLength(pattern.findall(submission.url)[0]), parsetime(timepattern.findall(comment.body)[0]))):
                 # Make comment and add to db
-                comment.reply(createComment(pattern.findall(submission.url)[0],parsetime(re.match(timepattern,comment.body).group(1))))
-                # print(createComment(pattern.findall(submission.url)[0],parsetime(re.match(timepattern,comment.body).group(1))))                
+                comment.reply(createComment(pattern.findall(submission.url)[0],parsetime(timepattern.findall(comment.body)[0])))
+                # print(createComment(pattern.findall(submission.url)[0],parsetime(timepattern.findall(comment.body)[0])))                
                 time.sleep(SLEEPTIME)
                 addToDatabase(submission.id, comment.id)
             continue
@@ -123,11 +123,12 @@ for submission in reddit.subreddit("+".join(subreddit)).rising(limit=int(config.
                     continue
                 if (isinDatabase(sub_comment.id)):
                     continue
-                if (len(pattern.findall(comment.body)) == 1) and (re.match(timepattern,sub_comment.body)):
-                    if(validate(getLength(pattern.findall(comment.body)[0]), parsetime(re.match(timepattern,sub_comment.body).group(1)))):
+                if (len(pattern.findall(comment.body)) == 1) and len(timepattern.findall(sub_comment.body)) ==1:
+                    if(validate(getLength(pattern.findall(comment.body)[0]), parsetime(timepattern.findall(sub_comment.body)[0]))):
                         # Make comment and add to db
-                        sub_comment.reply(createComment(pattern.findall(comment.body)[0],parsetime(re.match(timepattern,sub_comment.body).group(1))))
-                        # print(createComment(pattern.findall(comment.body)[0],parsetime(re.match(timepattern,sub_comment.body).group(1))))
+                        sub_comment.reply(createComment(pattern.findall(comment.body)[0],parsetime(timepattern.findall(sub_comment.body)[0])))
+                        # print(createComment(pattern.findall(comment.body)[0],parsetime(timepattern.findall(sub_comment.body)[0])))
                         addToDatabase(comment.id,sub_comment.id)
                         time.sleep(SLEEPTIME)
                     continue
+logging.info('Finished processing submission batch')
