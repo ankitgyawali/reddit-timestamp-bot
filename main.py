@@ -54,6 +54,8 @@ def addToDatabase(id, childid):
 def isinDatabase(id):
     cur.execute('SELECT * FROM timestamp WHERE id == ?', [id])
     item = cur.fetchone()
+    if(item is not None):
+        logging.info('Item id: '+ str(id)+ " is already in database.")
     return (item is not None)
 
 # Parse time from extracted comments
@@ -91,7 +93,7 @@ def getLength(url):
 
 # Check if the requested timestamp value is lesser than youtube video's lenght before replying
 def validate(total,timestamp):
-    return ((total[2]*3600 + total[1]*60 + total[0])>(timestamp[2]*3600+ timestamp[1]*60 + timestamp[0]))
+    return ((total[0]*3600 + total[1]*60 + total[2])>(timestamp[0]*3600+ timestamp[1]*60 + timestamp[2]))
 
 
 # Return a comment to be replied
@@ -112,10 +114,13 @@ for submission in reddit.subreddit("+".join(subreddit)).rising(limit=int(config.
         if (len(pattern.findall(submission.url)) == 1) and len(timepattern.findall(comment.body)) ==1:
             if(validate(getLength(pattern.findall(submission.url)[0]), parsetime(timepattern.findall(comment.body)[0]))):
                 # Make comment and add to db
-                comment.reply(createComment(pattern.findall(submission.url)[0],parsetime(timepattern.findall(comment.body)[0])))
+                try:
+                    comment.reply(createComment(pattern.findall(submission.url)[0],parsetime(timepattern.findall(comment.body)[0])))
+                    addToDatabase(submission.id, comment.id)
+                except Exception as e:
+                    logging.info('Error occurred while comenting, check logs: '+ str(e))
                 # print(createComment(pattern.findall(submission.url)[0],parsetime(timepattern.findall(comment.body)[0])))                
                 time.sleep(SLEEPTIME)
-                addToDatabase(submission.id, comment.id)
             continue
         else:
             for sub_comment in comment.replies:
@@ -126,9 +131,12 @@ for submission in reddit.subreddit("+".join(subreddit)).rising(limit=int(config.
                 if (len(pattern.findall(comment.body)) == 1) and len(timepattern.findall(sub_comment.body)) ==1:
                     if(validate(getLength(pattern.findall(comment.body)[0]), parsetime(timepattern.findall(sub_comment.body)[0]))):
                         # Make comment and add to db
-                        sub_comment.reply(createComment(pattern.findall(comment.body)[0],parsetime(timepattern.findall(sub_comment.body)[0])))
-                        # print(createComment(pattern.findall(comment.body)[0],parsetime(timepattern.findall(sub_comment.body)[0])))
-                        addToDatabase(comment.id,sub_comment.id)
+                        try:
+                            sub_comment.reply(createComment(pattern.findall(comment.body)[0],parsetime(timepattern.findall(sub_comment.body)[0])))
+                            addToDatabase(comment.id,sub_comment.id)
+                        except Exception as e:
+                            logging.info('Error occurred while comenting, check logs: '+ str(e))  
+                        # print(createComment(pattern.findall(comment.body)[0],parsetime(timepattern.findall(sub_comment.body)[0])))                                                
                         time.sleep(SLEEPTIME)
                     continue
 logging.info('Finished processing submission batch')
