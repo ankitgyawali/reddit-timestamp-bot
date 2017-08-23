@@ -164,7 +164,7 @@ def createComment(videoDetails,time):
     response +=" \n \n"
     response += "----------------------------------------------------------------------------- \n \n "
     #response += "^(" + pyjokes.get_joke("en","all").replace('(','[').replace(')',']') + ") \n \n"
-    response += "^^Beep ^^Bop, ^^I'm ^^a ^^Time ^^Stamp ^^Bot! [^^Source ^^Code](https://github.com/ankitgyawali/reddit-timestamp-bot)"
+    response += "^^Beep ^^Bop, ^^I'm ^^a ^^Time ^^Stamp ^^Bot! ^^Downvote ^^me ^^to ^^delete ^^malformed ^^comments! [^^Source ^^Code](https://github.com/ankitgyawali/reddit-timestamp-bot)"
     response += " ^^| [^^Suggestions](https://www.reddit.com/r/timestamp_bot)"
     return response
 
@@ -245,3 +245,13 @@ processABatch(reddit.subreddit("+".join(json.loads(config.get('SUBREDDITS', 'ALL
 #logging.info('New Batch Started: Hot All')
 processABatch(reddit.subreddit("+".join(json.loads(config.get('SUBREDDITS', 'ALL_SUBREDDIT')))).hot(limit=int(config.get('SUBREDDITS', 'ALL_POSTS'))))
 logging.info('Finished Processing')
+
+
+## Remove bad comments
+user = reddit.redditor(config.get('PRAW_DETAILS', 'BOT_USERNAME'))
+comments = user.comments.new(limit=100) # 100 new comments should be enough
+for comment in comments:
+    if(comment.score <= int(config.get('PRAW_DETAILS', 'NEGATIVE_KARMA_THRESHOLD'))):
+        time.sleep(int(config.get('SLEEPTIME', 'DELETE_BAD_COMMENTS')))
+        logging.info("Malformed Comment Score: " + str(comment.score) +", Removing comment: " + comment.id)
+        comment.delete()
