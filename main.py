@@ -107,7 +107,7 @@ def validate(total,timestamp):
         logging.info('Something is wrong with youtube API')
         return False
     else:
-        return ((total[0][0]*3600 + total[0][1]*60 + total[0][2])>(timestamp[0]*3600+ timestamp[1]*60 + timestamp[2]))
+        return (((total[0][0]*3600 + total[0][1]*60 + total[0][2]) - (timestamp[0]*3600+ timestamp[1]*60 + timestamp[2])) > 5)
 
 
 # Return a comment to be replied
